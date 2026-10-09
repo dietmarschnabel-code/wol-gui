@@ -1,0 +1,116 @@
+name: Cross-Platform Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Triggers on release tags like v0.1.0, v1.0.0
+
+permissions:
+  contents: write # Required to upload build assets to GitHub Releases
+
+jobs:
+  # ------------------------------------------------------------------
+  # Job 1: Build Windows Binary (.exe)
+  # ------------------------------------------------------------------
+  build-windows:
+    name: Build Windows Executable
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+
+      - name: Cache Cargo Dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build Windows Binary
+        run: cargo build --target x86_64-pc-windows-gnu --release
+
+      - name: Prepare Windows Package Artifact
+        run: |
+          mkdir -p staging
+          cp target/x86_64-pc-windows-gnu/release/wol-gui.exe staging/
+          cp README.md LICENSE-* staging/ || true
+          cd staging && zip -r ../wol-gui-windows-x86_64.zip *
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-binary
+          path: wol-gui-windows-x86_64.zip
+
+  # ------------------------------------------------------------------
+  # Job 2: Build Fedora RPM Package
+  # ------------------------------------------------------------------
+  build-fedora-rpm:
+    name: Build Fedora RPM
+    runs-on: ubuntu-latest
+    # Run directly inside a Fedora container to utilize native rpmbuild tooling
+    container:
+      image: fedora:latest
+    steps:
+      - name: Install Fedora Build Dependencies
+        run: |
+          dnf install -y cargo rpm-build rpmdevtools git desktop-file-utils
+
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Build Fedora RPM
+        run: |
+          VERSION=${GITHUB_REF_NAME#v} # Strip 'v' prefix from git tag
+          
+          # 1. Prepare RPM directory structure
+          rpmdev-setuptree
+          
+          # 2. Package source tarball
+          git archive --format=tar.gz --prefix=wol-gui-${VERSION}/ HEAD -o ~/rpmbuild/SOURCES/wol-gui-${VERSION}.tar.gz
+          
+          # 3. Update spec file version dynamically
+          sed -i "s/^Version:.*/Version:        ${VERSION}/" wol-gui.spec
+          cp wol-gui.spec ~/rpmbuild/SPECS/
+          
+          # 4. Build RPM binary package
+          rpmbuild -ba ~/rpmbuild/SPECS/wol-gui.spec
+          
+          # 5. Move built RPMs to workspace directory
+          mkdir -p output
+          cp ~/rpmbuild/RPMS/*/*.rpm output/
+
+      - name: Upload RPM Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fedora-rpm
+          path: output/*.rpm
+
+  # ------------------------------------------------------------------
+  # Job 3: Create GitHub Release & Attach Binaries
+  # ------------------------------------------------------------------
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-windows, build-fedora-rpm]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-binary
+
+      - name: Download Fedora RPM Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fedora-rpm
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            wol-gui-windows-x86_64.zip
+            *.rpm
+          draft: false
+          prerelease: false
+          generate_release_notes: true

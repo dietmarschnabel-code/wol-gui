@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Wake-on-LAN
+Comment=Send Wake-on-LAN magic packets to remote machines
+Exec=wol-gui
+Icon=network-workgroup
+Terminal=false
+Categories=Network;System;
