@@ -70,17 +70,31 @@ impl Default for WolApp {
 
 impl WolApp {
     fn tr(&self, key: &str) -> String {
-        let lang: LanguageIdentifier = self.current_lang.parse().unwrap_or_else(|_| "en-US".parse().unwrap());
-        LOCALES.lookup(&lang, key)
+        let lang: LanguageIdentifier = self
+            .current_lang
+            .parse()
+            .unwrap_or_else(|_| "en-US".parse().unwrap());
+        
+        // Fixed: Added unwrap_or_else fallback to return String instead of Option<String>
+        LOCALES
+            .lookup(&lang, key)
+            .unwrap_or_else(|| key.to_string())
     }
 
     fn tr_args(&self, key: &str, args: &HashMap<&str, &str>) -> String {
-        let lang: LanguageIdentifier = self.current_lang.parse().unwrap_or_else(|_| "en-US".parse().unwrap());
+        let lang: LanguageIdentifier = self
+            .current_lang
+            .parse()
+            .unwrap_or_else(|_| "en-US".parse().unwrap());
         let fluent_args: HashMap<String, fluent_templates::fluent_bundle::FluentValue> = args
             .iter()
             .map(|(k, v)| (k.to_string(), (*v).into()))
             .collect();
-        LOCALES.lookup_with_args(&lang, key, &fluent_args)
+            
+        // Fixed: Added unwrap_or_else fallback to return String instead of Option<String>
+        LOCALES
+            .lookup_with_args(&lang, key, &fluent_args)
+            .unwrap_or_else(|| key.to_string())
     }
 
     fn send_packet(&mut self, index: usize) {
@@ -152,15 +166,28 @@ impl eframe::App for WolApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.apply_theme(ctx);
 
+        // Fixed: Pre-evaluate UI strings into local variables before entering closures or mutable borrows
+        let app_title = self.tr("app-title");
+        let theme_label = self.tr("theme-label");
+        let theme_dark = self.tr("theme-dark");
+        let theme_light = self.tr("theme-light");
+        let sidebar_devices = self.tr("sidebar-devices");
+        let sidebar_add = self.tr("sidebar-add-device");
+        let label_name = self.tr("label-name");
+        let label_mac = self.tr("label-mac");
+        let label_ip = self.tr("label-ip");
+        let label_port = self.tr("label-port");
+        let btn_send = self.tr("btn-send");
+
         // Top Header Bar: Language & Theme Controls
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.heading(self.tr("app-title"));
+                ui.heading(app_title);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     // Theme Selector
-                    ui.selectable_value(&mut self.theme_mode, ThemeMode::Light, self.tr("theme-light"));
-                    ui.selectable_value(&mut self.theme_mode, ThemeMode::Dark, self.tr("theme-dark"));
-                    ui.label(self.tr("theme-label"));
+                    ui.selectable_value(&mut self.theme_mode, ThemeMode::Light, theme_light);
+                    ui.selectable_value(&mut self.theme_mode, ThemeMode::Dark, theme_dark);
+                    ui.label(theme_label);
 
                     ui.separator();
 
@@ -189,7 +216,7 @@ impl eframe::App for WolApp {
             .resizable(false)
             .default_width(180.0)
             .show(ctx, |ui| {
-                ui.heading(self.tr("sidebar-devices"));
+                ui.heading(sidebar_devices);
                 ui.separator();
 
                 let mut to_remove = None;
@@ -210,7 +237,7 @@ impl eframe::App for WolApp {
 
                 ui.separator();
 
-                if ui.button(self.tr("sidebar-add-device")).clicked() {
+                if ui.button(sidebar_add).clicked() {
                     self.devices.push(TargetDevice::default());
                     self.selected_index = Some(self.devices.len() - 1);
                 }
@@ -235,19 +262,19 @@ impl eframe::App for WolApp {
                         .num_columns(2)
                         .spacing([20.0, 10.0])
                         .show(ui, |ui| {
-                            ui.label(self.tr("label-name"));
+                            ui.label(label_name);
                             ui.text_edit_singleline(&mut device.name);
                             ui.end_row();
 
-                            ui.label(self.tr("label-mac"));
+                            ui.label(label_mac);
                             ui.text_edit_singleline(&mut device.mac);
                             ui.end_row();
 
-                            ui.label(self.tr("label-ip"));
+                            ui.label(label_ip);
                             ui.text_edit_singleline(&mut device.ip);
                             ui.end_row();
 
-                            ui.label(self.tr("label-port"));
+                            ui.label(label_port);
                             ui.add(egui::DragValue::new(&mut device.port).clamp_range(1..=65535));
                             ui.end_row();
                         });
@@ -255,7 +282,7 @@ impl eframe::App for WolApp {
                     ui.add_space(20.0);
 
                     if ui
-                        .add_sized([ui.available_width(), 38.0], egui::Button::new(self.tr("btn-send")))
+                        .add_sized([ui.available_width(), 38.0], egui::Button::new(btn_send))
                         .clicked()
                     {
                         self.send_packet(idx);
