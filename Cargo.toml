@@ -1,8 +1,11 @@
 [package]
 name = "wol-gui"
 version = "0.1.0"
-edition = "2021"
+edition = "2026"
 license = "MIT OR Apache-2.0"
+authors = ["Dietmar Schnabel"]
+description = "A fast, lightweight, memory-safe cross-platform Wake-on-LAN GUI desktop manager written in Rust."
+repository = "https://github.com/dietmarschnabel-code/go-e-sma-homewizard-controller"
 
 [dependencies]
 eframe = { version = "0.27", features = ["persistence"] }
@@ -14,8 +17,8 @@ unic-langid = "0.9"
 sys-locale = "0.3"
 
 [package.metadata.deb]
-maintainer = "Your Name <dschnabel64@gmail.com>"
-copyright = "2026, Dietmar Schnabel <dschnabel64@gmail.com>"
+maintainer = "Dietmar Schnabel"
+copyright = "2026, Dietmar Schnabel"
 license-file = ["LICENSE-MIT", "4"]
 extended-description = """\
 A lightweight, memory-safe Wake-on-LAN desktop manager built in Rust.
@@ -27,3 +30,6 @@ assets = [
     ["target/release/wol-gui", "usr/bin/", "755"],
     ["wol-gui.desktop", "usr/share/applications/", "644"],
 ]
+
+[package.metadata.wix]
+eula = false
