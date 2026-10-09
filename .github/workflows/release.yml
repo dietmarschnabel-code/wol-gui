@@ -1,11 +1,11 @@
 name: Cross-Platform Release
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:  # Add this to allow manual triggers
-  
+
 permissions:
   contents: write
 
@@ -23,7 +23,7 @@ jobs:
       - name: Install Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install WiX Toolset via WiX Action
+      - name: Install WiX Toolset
         run: dotnet tool install --global wix --version 4.0.5
 
       - name: Install cargo-wix
@@ -33,10 +33,10 @@ jobs:
         run: cargo build --release
 
       - name: Build Windows Installer (.msi)
-      
         run: |
           cargo wix init --force
           cargo wix
+          Copy-Item target\wix\*.msi .
 
       - name: Package Windows Zip Archive
         run: |
@@ -52,7 +52,7 @@ jobs:
           name: windows-packages
           path: |
             wol-gui-windows-x86_64.zip
-            target/wix/*.msi
+            *.msi
 
   # ------------------------------------------------------------------
   # Job 2: Build Fedora RPM Package
@@ -72,9 +72,7 @@ jobs:
 
       - name: Build Fedora RPM
         run: |
-          # Trust the workspace path inside the Docker container
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
           VERSION=${GITHUB_REF_NAME#v}
           rpmdev-setuptree
           git archive --format=tar.gz --prefix=wol-gui-${VERSION}/ HEAD -o ~/rpmbuild/SOURCES/wol-gui-${VERSION}.tar.gz
@@ -142,10 +140,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            *.zip
-            *.msi
-            *.rpm
-            *.deb
+            **/*.zip
+            **/*.msi
+            **/*.rpm
+            **/*.deb
           draft: false
           prerelease: false
           generate_release_notes: true
