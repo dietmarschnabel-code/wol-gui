@@ -11,6 +11,7 @@ macaddr = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 fluent-templates = "0.8"
 unic-langid = "0.9"
+sys-locale = "0.3"
 
 [package.metadata.deb]
 maintainer = "Your Name <dschnabel64@gmail.com>"

@@ -15,6 +15,31 @@ static_loader! {
     };
 }
 
+/// Detects the host operating system's language setting and maps it to a supported locale.
+fn detect_system_language() -> String {
+    let sys_lang = sys_locale::get_locale().unwrap_or_default();
+    let normalized = sys_lang.replace('_', "-");
+
+    // Direct match if OS reports exact locale code (e.g., "de-DE", "zh-CN")
+    if matches!(
+        normalized.as_str(),
+        "en-US" | "es-ES" | "fr-FR" | "de-DE" | "zh-CN"
+    ) {
+        return normalized;
+    }
+
+    // Match base language prefix (e.g., "de_AT" -> "de" -> "de-DE")
+    let lang_prefix = normalized.split('-').next().unwrap_or("").to_lowercase();
+    match lang_prefix.as_str() {
+        "es" => "es-ES".to_string(),
+        "fr" => "fr-FR".to_string(),
+        "de" => "de-DE".to_string(),
+        "zh" => "zh-CN".to_string(),
+        "en" => "en-US".to_string(),
+        _ => "en-US".to_string(), // Default fallback
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum ThemeMode {
     System,
@@ -60,7 +85,7 @@ impl Default for WolApp {
         Self {
             devices: vec![TargetDevice::default()],
             selected_index: Some(0),
-            current_lang: "en-US".to_string(),
+            current_lang: detect_system_language(), // Auto-detected on first launch
             theme_mode: ThemeMode::System,
             status_message: String::new(),
             is_error: false,
@@ -74,8 +99,7 @@ impl WolApp {
             .current_lang
             .parse()
             .unwrap_or_else(|_| "en-US".parse().unwrap());
-        
-        // Fixed: Added unwrap_or_else fallback to return String instead of Option<String>
+
         LOCALES
             .lookup(&lang, key)
             .unwrap_or_else(|| key.to_string())
@@ -90,8 +114,7 @@ impl WolApp {
             .iter()
             .map(|(k, v)| (k.to_string(), (*v).into()))
             .collect();
-            
-        // Fixed: Added unwrap_or_else fallback to return String instead of Option<String>
+
         LOCALES
             .lookup_with_args(&lang, key, &fluent_args)
             .unwrap_or_else(|| key.to_string())
@@ -166,7 +189,7 @@ impl eframe::App for WolApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.apply_theme(ctx);
 
-        // Fixed: Pre-evaluate UI strings into local variables before entering closures or mutable borrows
+        // Pre-evaluate strings into local variables to satisfy Rust borrow checker
         let app_title = self.tr("app-title");
         let theme_label = self.tr("theme-label");
         let theme_dark = self.tr("theme-dark");
