@@ -1,0 +1,15 @@
+app-title = 网络唤醒管理器 (Wake-on-LAN)
+sidebar-devices = 设备列表
+sidebar-add-device = ➕ 添加新设备
+label-name = 设备名称:
+label-mac = MAC 地址:
+label-ip = 广播 IP 地址:
+label-port = 端口号:
+btn-send = ⚡ 发送魔术唤醒包
+status-ready = 请选择或新建一个设备配置文件。
+status-success = ⚡ 已成功向 '{$name}' ({$mac}) 发送唤醒包！
+status-invalid-mac = MAC 地址格式错误 (例: 00:11:22:33:44:55)。
+status-invalid-ip = IP 地址或端口号无效。
+theme-label = 主题模式:
+theme-dark = 🌙 深色
+theme-light = ☀️ 浅色

@@ -1,8 +1,19 @@
 [Desktop Entry]
 Type=Application
 Name=Wake-on-LAN
+Name[es]=Gestor Wake-on-LAN
+Name[fr]=Gestionnaire Wake-on-LAN
+Name[de]=Wake-on-LAN Verwalter
+Name[zh_CN]=网络唤醒管理器
+
 Comment=Send Wake-on-LAN magic packets to remote machines
+Comment[es]=Enviar paquetes mágicos Wake-on-LAN a equipos remotos
+Comment[fr]=Envoyer des paquets magiques Wake-on-LAN à des machines distantes
+Comment[de]=Sendet Wake-on-LAN Magic Packets an entfernte Geräte
+Comment[zh_CN]=向远程计算机发送 Wake-on-LAN 魔术唤醒包
+
 Exec=wol-gui
 Icon=network-workgroup
 Terminal=false
 Categories=Network;System;
+Keywords=WoL;Wake;Network;Magic;Packet;

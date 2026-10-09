@@ -1,8 +1,26 @@
 use eframe::egui;
+use fluent_templates::{static_loader, Loader};
 use macaddr::MacAddr6;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::net::{SocketAddr, UdpSocket};
 use std::str::FromStr;
+use unic_langid::LanguageIdentifier;
+
+// Embed locales folder at compile time
+static_loader! {
+    static LOCALES = {
+        locales: "./locales",
+        fallback_language: "en-US",
+    };
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub enum ThemeMode {
+    System,
+    Dark,
+    Light,
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TargetDevice {
@@ -15,7 +33,7 @@ pub struct TargetDevice {
 impl Default for TargetDevice {
     fn default() -> Self {
         Self {
-            name: "New Workstation".to_string(),
+            name: "Workstation".to_string(),
             mac: "00:11:22:33:44:55".to_string(),
             ip: "255.255.255.255".to_string(),
             port: 9,
@@ -23,14 +41,14 @@ impl Default for TargetDevice {
     }
 }
 
-/// Persistent application state saved automatically by eframe
 #[derive(Serialize, Deserialize)]
 #[serde(default)]
 pub struct WolApp {
     devices: Vec<TargetDevice>,
     selected_index: Option<usize>,
+    current_lang: String,
+    theme_mode: ThemeMode,
 
-    // Transient UI state (not serialized)
     #[serde(skip)]
     status_message: String,
     #[serde(skip)]
@@ -40,28 +58,31 @@ pub struct WolApp {
 impl Default for WolApp {
     fn default() -> Self {
         Self {
-            devices: vec![
-                TargetDevice {
-                    name: "Home PC".to_string(),
-                    mac: "00:11:22:33:44:55".to_string(),
-                    ip: "192.168.1.255".to_string(),
-                    port: 9,
-                },
-                TargetDevice {
-                    name: "NAS Server".to_string(),
-                    mac: "AA:BB:CC:DD:EE:FF".to_string(),
-                    ip: "255.255.255.255".to_string(),
-                    port: 9,
-                },
-            ],
+            devices: vec![TargetDevice::default()],
             selected_index: Some(0),
-            status_message: "Select a device profile to manage.".to_string(),
+            current_lang: "en-US".to_string(),
+            theme_mode: ThemeMode::System,
+            status_message: String::new(),
             is_error: false,
         }
     }
 }
 
 impl WolApp {
+    fn tr(&self, key: &str) -> String {
+        let lang: LanguageIdentifier = self.current_lang.parse().unwrap_or_else(|_| "en-US".parse().unwrap());
+        LOCALES.lookup(&lang, key)
+    }
+
+    fn tr_args(&self, key: &str, args: &HashMap<&str, &str>) -> String {
+        let lang: LanguageIdentifier = self.current_lang.parse().unwrap_or_else(|_| "en-US".parse().unwrap());
+        let fluent_args: HashMap<String, fluent_templates::fluent_bundle::FluentValue> = args
+            .iter()
+            .map(|(k, v)| (k.to_string(), (*v).into()))
+            .collect();
+        LOCALES.lookup_with_args(&lang, key, &fluent_args)
+    }
+
     fn send_packet(&mut self, index: usize) {
         let device = match self.devices.get(index) {
             Some(d) => d.clone(),
@@ -85,18 +106,18 @@ impl WolApp {
                         match dest_str.parse::<SocketAddr>() {
                             Ok(destination) => {
                                 if let Err(e) = socket.send_to(&packet, destination) {
-                                    self.status_message = format!("Failed to send packet: {}", e);
+                                    self.status_message = format!("Socket error: {}", e);
                                     self.is_error = true;
                                 } else {
-                                    self.status_message = format!(
-                                        "⚡ Magic packet sent to '{}' ({})!",
-                                        device.name, device.mac
-                                    );
+                                    let mut args = HashMap::new();
+                                    args.insert("name", device.name.as_str());
+                                    args.insert("mac", device.mac.as_str());
+                                    self.status_message = self.tr_args("status-success", &args);
                                     self.is_error = false;
                                 }
                             }
                             Err(_) => {
-                                self.status_message = "Invalid IP address or port.".to_string();
+                                self.status_message = self.tr("status-invalid-ip");
                                 self.is_error = true;
                             }
                         }
@@ -108,26 +129,67 @@ impl WolApp {
                 }
             }
             Err(_) => {
-                self.status_message = "Invalid MAC format (expected 00:11:22:33:44:55).".to_string();
+                self.status_message = self.tr("status-invalid-mac");
                 self.is_error = true;
             }
+        }
+    }
+
+    fn apply_theme(&self, ctx: &egui::Context) {
+        match self.theme_mode {
+            ThemeMode::Dark => ctx.set_visuals(egui::Visuals::dark()),
+            ThemeMode::Light => ctx.set_visuals(egui::Visuals::light()),
+            ThemeMode::System => {}
         }
     }
 }
 
 impl eframe::App for WolApp {
-    /// Save persistent state to disk when closing or when requested by eframe
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value(storage, eframe::APP_KEY, self);
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // --- Left Sidebar: Saved Profiles List ---
+        self.apply_theme(ctx);
+
+        // Top Header Bar: Language & Theme Controls
+        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.heading(self.tr("app-title"));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    // Theme Selector
+                    ui.selectable_value(&mut self.theme_mode, ThemeMode::Light, self.tr("theme-light"));
+                    ui.selectable_value(&mut self.theme_mode, ThemeMode::Dark, self.tr("theme-dark"));
+                    ui.label(self.tr("theme-label"));
+
+                    ui.separator();
+
+                    // Language Selector
+                    egui::ComboBox::from_id_source("lang_selector")
+                        .selected_text(match self.current_lang.as_str() {
+                            "es-ES" => "Español",
+                            "fr-FR" => "Français",
+                            "de-DE" => "Deutsch",
+                            "zh-CN" => "中文",
+                            _ => "English",
+                        })
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut self.current_lang, "en-US".to_string(), "English");
+                            ui.selectable_value(&mut self.current_lang, "es-ES".to_string(), "Español");
+                            ui.selectable_value(&mut self.current_lang, "fr-FR".to_string(), "Français");
+                            ui.selectable_value(&mut self.current_lang, "de-DE".to_string(), "Deutsch");
+                            ui.selectable_value(&mut self.current_lang, "zh-CN".to_string(), "中文");
+                        });
+                });
+            });
+        });
+
+        // Left Sidebar: Device List
         egui::SidePanel::left("devices_panel")
             .resizable(false)
-            .default_width(170.0)
+            .default_width(180.0)
             .show(ctx, |ui| {
-                ui.heading("Devices");
+                ui.heading(self.tr("sidebar-devices"));
                 ui.separator();
 
                 let mut to_remove = None;
@@ -139,8 +201,6 @@ impl eframe::App for WolApp {
                             if ui.selectable_label(is_selected, &dev.name).clicked() {
                                 self.selected_index = Some(i);
                             }
-
-                            // Delete button next to each profile
                             if ui.button("❌").clicked() {
                                 to_remove = Some(i);
                             }
@@ -150,13 +210,11 @@ impl eframe::App for WolApp {
 
                 ui.separator();
 
-                // Add new profile button
-                if ui.button("➕ Add Device").clicked() {
+                if ui.button(self.tr("sidebar-add-device")).clicked() {
                     self.devices.push(TargetDevice::default());
                     self.selected_index = Some(self.devices.len() - 1);
                 }
 
-                // Handle deletion outside iteration
                 if let Some(idx) = to_remove {
                     self.devices.remove(idx);
                     if self.devices.is_empty() {
@@ -169,53 +227,45 @@ impl eframe::App for WolApp {
                 }
             });
 
-        // --- Main Central Panel: Editor & Controls ---
+        // Central Panel: Configuration Form
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(idx) = self.selected_index {
                 if let Some(device) = self.devices.get_mut(idx) {
-                    ui.heading("Device Configuration");
-                    ui.separator();
-
                     egui::Grid::new("device_form")
                         .num_columns(2)
                         .spacing([20.0, 10.0])
                         .show(ui, |ui| {
-                            ui.label("Name:");
+                            ui.label(self.tr("label-name"));
                             ui.text_edit_singleline(&mut device.name);
                             ui.end_row();
 
-                            ui.label("MAC Address:");
+                            ui.label(self.tr("label-mac"));
                             ui.text_edit_singleline(&mut device.mac);
                             ui.end_row();
 
-                            ui.label("Broadcast IP:");
+                            ui.label(self.tr("label-ip"));
                             ui.text_edit_singleline(&mut device.ip);
                             ui.end_row();
 
-                            ui.label("Port:");
-                            ui.add(egui::DragValue::new(&mut device.port).range(1..=65535));
+                            ui.label(self.tr("label-port"));
+                            ui.add(egui::DragValue::new(&mut device.port).clamp_range(1..=65535));
                             ui.end_row();
                         });
 
                     ui.add_space(20.0);
 
                     if ui
-                        .add_sized([ui.available_width(), 38.0], egui::Button::new("⚡ Send Magic Packet"))
+                        .add_sized([ui.available_width(), 38.0], egui::Button::new(self.tr("btn-send")))
                         .clicked()
                     {
                         self.send_packet(idx);
                     }
                 }
-            } else {
-                ui.centered_and_justified(|ui| {
-                    ui.label("No device selected. Click '➕ Add Device' to get started.");
-                });
             }
 
             ui.add_space(15.0);
             ui.separator();
 
-            // Status bar output
             let color = if self.is_error {
                 egui::Color32::LIGHT_RED
             } else {
@@ -229,7 +279,7 @@ impl eframe::App for WolApp {
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([520.0, 320.0])
+            .with_inner_size([620.0, 360.0])
             .with_resizable(true),
         ..Default::default()
     };
@@ -238,7 +288,6 @@ fn main() -> eframe::Result<()> {
         "Wake-on-LAN Manager",
         options,
         Box::new(|cc| {
-            // Restore persistent state from storage if available
             if let Some(storage) = cc.storage {
                 if let Some(app) = eframe::get_value::<WolApp>(storage, eframe::APP_KEY) {
                     return Box::new(app);

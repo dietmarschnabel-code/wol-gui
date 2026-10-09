@@ -1,0 +1,15 @@
+app-title = Wake-on-LAN Manager
+sidebar-devices = Devices
+sidebar-add-device = ➕ Add Device
+label-name = Name:
+label-mac = MAC Address:
+label-ip = Broadcast IP:
+label-port = Port:
+btn-send = ⚡ Send Magic Packet
+status-ready = Select or create a device profile.
+status-success = ⚡ Magic packet sent to '{$name}' ({$mac})!
+status-invalid-mac = Invalid MAC format (expected 00:11:22:33:44:55).
+status-invalid-ip = Invalid IP address or port.
+theme-label = Theme:
+theme-dark = 🌙 Dark
+theme-light = ☀️ Light

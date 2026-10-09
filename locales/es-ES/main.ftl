@@ -1,0 +1,15 @@
+app-title = Gestor Wake-on-LAN
+sidebar-devices = Dispositivos
+sidebar-add-device = ➕ Añadir Dispositivo
+label-name = Nombre:
+label-mac = Dirección MAC:
+label-ip = IP de Difusión:
+label-port = Puerto:
+btn-send = ⚡ Enviar Paquete Mágico
+status-ready = Seleccione o cree un perfil de dispositivo.
+status-success = ⚡ ¡Paquete mágico enviado a '{$name}' ({$mac})!
+status-invalid-mac = Formato MAC no válido (se espera 00:11:22:33:44:55).
+status-invalid-ip = Dirección IP o puerto no válido.
+theme-label = Tema:
+theme-dark = 🌙 Oscuro
+theme-light = ☀️ Claro
