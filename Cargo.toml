@@ -11,3 +11,18 @@ macaddr = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 fluent-templates = "0.8"
 unic-langid = "0.9"
+
+[package.metadata.deb]
+maintainer = "Your Name <dschnabel64@gmail.com>"
+copyright = "2026, Dietmar Schnabel <dschnabel64@gmail.com>"
+license-file = ["LICENSE-MIT", "4"]
+extended-description = """\
+A lightweight, memory-safe Wake-on-LAN desktop manager built in Rust.
+Allows managing target device profiles and sending magic packets across subnets.
+"""
+section = "net"
+priority = "optional"
+assets = [
+    ["target/release/wol-gui", "usr/bin/", "755"],
+    ["wol-gui.desktop", "usr/share/applications/", "644"],
+]

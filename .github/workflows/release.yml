@@ -3,45 +3,51 @@ name: Cross-Platform Release
 on:
   push:
     tags:
-      - 'v*' # Triggers on release tags like v0.1.0, v1.0.0
+      - 'v*'
 
 permissions:
-  contents: write # Required to upload build assets to GitHub Releases
+  contents: write
 
 jobs:
   # ------------------------------------------------------------------
-  # Job 1: Build Windows Binary (.exe)
+  # Job 1: Build Windows (.exe + .msi)
   # ------------------------------------------------------------------
   build-windows:
-    name: Build Windows Executable
-    runs-on: ubuntu-latest
+    name: Build Windows Binaries & MSI
+    runs-on: windows-latest
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
       - name: Install Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-gnu
 
-      - name: Cache Cargo Dependencies
-        uses: Swatinem/rust-cache@v2
+      - name: Install WiX Toolset via WiX Action
+        run: dotnet tool install --global wix --version 4.0.5
 
-      - name: Build Windows Binary
-        run: cargo build --target x86_64-pc-windows-gnu --release
+      - name: Install cargo-wix
+        run: cargo install cargo-wix
 
-      - name: Prepare Windows Package Artifact
+      - name: Build Windows Binary (.exe)
+        run: cargo build --release
+
+      - name: Build Windows Installer (.msi)
+        run: cargo wix --release
+
+      - name: Package Windows Zip Archive
         run: |
-          mkdir -p staging
-          cp target/x86_64-pc-windows-gnu/release/wol-gui.exe staging/
-          cp README.md LICENSE-* staging/ || true
-          cd staging && zip -r ../wol-gui-windows-x86_64.zip *
+          mkdir staging
+          cp target/release/wol-gui.exe staging/
+          cp README.md LICENSE-* staging/
+          Compress-Archive -Path staging/* -DestinationPath wol-gui-windows-x86_64.zip
 
-      - name: Upload Windows Artifact
+      - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-binary
-          path: wol-gui-windows-x86_64.zip
+          name: windows-packages
+          path: |
+            wol-gui-windows-x86_64.zip
+            target/wix/*.msi
 
   # ------------------------------------------------------------------
   # Job 2: Build Fedora RPM Package
@@ -49,7 +55,6 @@ jobs:
   build-fedora-rpm:
     name: Build Fedora RPM
     runs-on: ubuntu-latest
-    # Run directly inside a Fedora container to utilize native rpmbuild tooling
     container:
       image: fedora:latest
     steps:
@@ -62,22 +67,12 @@ jobs:
 
       - name: Build Fedora RPM
         run: |
-          VERSION=${GITHUB_REF_NAME#v} # Strip 'v' prefix from git tag
-          
-          # 1. Prepare RPM directory structure
+          VERSION=${GITHUB_REF_NAME#v}
           rpmdev-setuptree
-          
-          # 2. Package source tarball
           git archive --format=tar.gz --prefix=wol-gui-${VERSION}/ HEAD -o ~/rpmbuild/SOURCES/wol-gui-${VERSION}.tar.gz
-          
-          # 3. Update spec file version dynamically
           sed -i "s/^Version:.*/Version:        ${VERSION}/" wol-gui.spec
           cp wol-gui.spec ~/rpmbuild/SPECS/
-          
-          # 4. Build RPM binary package
           rpmbuild -ba ~/rpmbuild/SPECS/wol-gui.spec
-          
-          # 5. Move built RPMs to workspace directory
           mkdir -p output
           cp ~/rpmbuild/RPMS/*/*.rpm output/
 
@@ -88,29 +83,61 @@ jobs:
           path: output/*.rpm
 
   # ------------------------------------------------------------------
-  # Job 3: Create GitHub Release & Attach Binaries
+  # Job 3: Build Debian / Ubuntu DEB Package
+  # ------------------------------------------------------------------
+  build-debian-deb:
+    name: Build Debian DEB
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-deb
+        run: cargo install cargo-deb
+
+      - name: Build .deb Package
+        run: cargo deb
+
+      - name: Upload DEB Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: debian-deb
+          path: target/debian/*.deb
+
+  # ------------------------------------------------------------------
+  # Job 4: Publish GitHub Release
   # ------------------------------------------------------------------
   publish-release:
     name: Publish GitHub Release
-    needs: [build-windows, build-fedora-rpm]
+    needs: [build-windows, build-fedora-rpm, build-debian-deb]
     runs-on: ubuntu-latest
     steps:
-      - name: Download Windows Artifact
+      - name: Download Windows Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: windows-binary
+          name: windows-packages
 
       - name: Download Fedora RPM Artifact
         uses: actions/download-artifact@v4
         with:
           name: fedora-rpm
 
+      - name: Download Debian DEB Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: debian-deb
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            wol-gui-windows-x86_64.zip
+            *.zip
+            *.msi
             *.rpm
+            *.deb
           draft: false
           prerelease: false
           generate_release_notes: true
