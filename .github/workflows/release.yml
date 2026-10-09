@@ -33,7 +33,10 @@ jobs:
         run: cargo build --release
 
       - name: Build Windows Installer (.msi)
-        run: cargo wix
+      
+        run: |
+          cargo wix init --force
+          cargo wix
 
       - name: Package Windows Zip Archive
         run: |
@@ -70,7 +73,7 @@ jobs:
         run: |
           # Trust the workspace path inside the Docker container
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          
+
           VERSION=${GITHUB_REF_NAME#v}
           rpmdev-setuptree
           git archive --format=tar.gz --prefix=wol-gui-${VERSION}/ HEAD -o ~/rpmbuild/SOURCES/wol-gui-${VERSION}.tar.gz
