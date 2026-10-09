@@ -41,9 +41,10 @@ jobs:
       - name: Package Windows Zip Archive
         run: |
           mkdir staging
-          cp target/release/wol-gui.exe staging/
-          cp README.md LICENSE-* staging/
-          Compress-Archive -Path staging/* -DestinationPath wol-gui-windows-x86_64.zip
+          Copy-Item target/release/wol-gui.exe staging\
+          Copy-Item README.md staging\
+          Copy-Item LICENSE* staging\
+          Compress-Archive -Path staging\* -DestinationPath wol-gui-windows-x86_64.zip
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
