@@ -10,12 +10,32 @@ permissions:
   contents: write
 
 jobs:
+  release-version:
+    name: Validate Release Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Read Version from Release Tag
+        id: version
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a release tag like v1.2.3; got: $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
   # ------------------------------------------------------------------
   # Job 1: Build Windows (.exe + .msi)
   # ------------------------------------------------------------------
   build-windows:
     name: Build Windows Binaries & MSI
+    needs: release-version
     runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.release-version.outputs.version }}
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
@@ -28,6 +48,13 @@ jobs:
 
       - name: Install cargo-wix
         run: cargo install cargo-wix
+
+      - name: Set Cargo Version from Release Tag
+        shell: pwsh
+        run: |
+          $content = Get-Content Cargo.toml -Raw
+          $content = $content -replace '(?m)^version = "[^"]+"$', "version = `"$env:VERSION`""
+          Set-Content Cargo.toml -Value $content -NoNewline
 
       - name: Build Windows Binary (.exe)
         run: cargo build --release
@@ -59,7 +86,10 @@ jobs:
   # ------------------------------------------------------------------
   build-fedora-rpm:
     name: Build Fedora RPM
+    needs: release-version
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.release-version.outputs.version }}
     container:
       image: fedora:latest
     steps:
@@ -73,10 +103,10 @@ jobs:
       - name: Build Fedora RPM
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          VERSION=${GITHUB_REF_NAME#v}
+          sed -i "0,/^version = .*/s//version = \"${VERSION}\"/" Cargo.toml
           rpmdev-setuptree
-          git archive --format=tar.gz --prefix=wol-gui-${VERSION}/ HEAD -o ~/rpmbuild/SOURCES/wol-gui-${VERSION}.tar.gz
           sed -i "s/^Version:.*/Version:        ${VERSION}/" wol-gui.spec
+          git archive --format=tar.gz --prefix=wol-gui-${VERSION}/ HEAD -o ~/rpmbuild/SOURCES/wol-gui-${VERSION}.tar.gz
           cp wol-gui.spec ~/rpmbuild/SPECS/
           rpmbuild -ba ~/rpmbuild/SPECS/wol-gui.spec
           mkdir -p output
@@ -93,7 +123,10 @@ jobs:
   # ------------------------------------------------------------------
   build-debian-deb:
     name: Build Debian DEB
+    needs: release-version
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.release-version.outputs.version }}
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
@@ -103,6 +136,9 @@ jobs:
 
       - name: Install cargo-deb
         run: cargo install cargo-deb
+
+      - name: Set Cargo Version from Release Tag
+        run: sed -i "0,/^version = .*/s//version = \"${VERSION}\"/" Cargo.toml
 
       - name: Build .deb Package
         run: cargo deb
@@ -118,7 +154,7 @@ jobs:
   # ------------------------------------------------------------------
   publish-release:
     name: Publish GitHub Release
-    needs: [build-windows, build-fedora-rpm, build-debian-deb]
+    needs: [release-version, build-windows, build-fedora-rpm, build-debian-deb]
     runs-on: ubuntu-latest
     steps:
       - name: Download Windows Artifacts

@@ -4,6 +4,7 @@ A lightweight, cross-platform Wake-on-LAN (WoL) desktop application written in R
 
 ![Rust](https://img.shields.io/badge/Language-Rust-orange.svg)
 ![License](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)
+[![Latest release](https://img.shields.io/github/v/release/dietmarschnabel-code/wol-gui?display_name=tag)](https://github.com/dietmarschnabel-code/wol-gui/releases/latest)
 
 ---
 

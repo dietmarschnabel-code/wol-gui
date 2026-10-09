@@ -26,13 +26,14 @@ This guide explains how to install the application from official releases, remov
 ## 1. Installing pre-built releases
 
 Official release artifacts for supported platforms are published on the [GitHub Releases](https://github.com/dietmarschnabel-code/wol-gui/releases) page.
+Artifact version numbers match the release tag without its leading `v` (for example, tag `vX.Y.Z` produces assets using `X.Y.Z`).
 
 ### Fedora / RHEL / CentOS (.rpm)
 
 Download the latest `.rpm` package, then install it with `dnf`:
 
 ```bash
-sudo dnf install ./wol-gui-0.1.0-1.fc40.x86_64.rpm
+sudo dnf install ./wol-gui-<release-version>-1.<fedora-release>.<architecture>.rpm
 ```
 
 ### Debian / Ubuntu / Linux Mint (.deb)
@@ -41,19 +42,19 @@ Download the latest `.deb` package, then install it with `apt`:
 
 ```bash
 sudo apt update
-sudo apt install ./wol-gui_0.1.0_amd64.deb
+sudo apt install ./wol-gui_<release-version>_amd64.deb
 ```
 
 If necessary, you can install it using `dpkg` and then fix any missing dependencies:
 
 ```bash
-sudo dpkg -i wol-gui_0.1.0_amd64.deb
+sudo dpkg -i wol-gui_<release-version>_amd64.deb
 sudo apt-get install -f
 ```
 
 ### Windows (.msi / .zip)
 
-- MSI installer (recommended): download `wol-gui-0.1.0-x86_64.msi` and run the installer. This creates a Start Menu shortcut and adds an uninstaller entry in Windows Settings.
+- MSI installer (recommended): download `wol-gui-<release-version>-x86_64.msi` and run the installer. This creates a Start Menu shortcut and adds an uninstaller entry in Windows Settings.
 - Portable ZIP archive: download `wol-gui-windows-x86_64.zip`, extract it, and run `wol-gui.exe` directly.
 
 ---
@@ -126,7 +127,9 @@ rpmdev-setuptree
 Create a source tarball that matches the spec file version:
 
 ```bash
-git archive --format=tar.gz --prefix=wol-gui-0.1.0/ HEAD -o ~/rpmbuild/SOURCES/wol-gui-0.1.0.tar.gz
+VERSION=$(git describe --tags --exact-match --match 'v*' | sed 's/^v//')
+git archive --format=tar.gz --prefix="wol-gui-${VERSION}/" "v${VERSION}" -o ~/rpmbuild/SOURCES/wol-gui-${VERSION}.tar.gz
+sed -i "s/^Version:.*/Version:        ${VERSION}/" wol-gui.spec
 ```
 
 Copy the spec file into the RPM build tree and build the package:
@@ -139,7 +142,7 @@ rpmbuild -ba ~/rpmbuild/SPECS/wol-gui.spec
 The built package will be created at:
 
 ```text
-~/rpmbuild/RPMS/x86_64/wol-gui-0.1.0-1.fc40.x86_64.rpm
+~/rpmbuild/RPMS/<architecture>/wol-gui-<release-version>-1.<fedora-release>.<architecture>.rpm
 ```
 
 ### Debian / Ubuntu DEB package
@@ -174,13 +177,15 @@ assets = [
 Build the package:
 
 ```bash
+VERSION=$(git describe --tags --exact-match --match 'v*' | sed 's/^v//')
+sed -i "0,/^version = .*/s//version = \"${VERSION}\"/" Cargo.toml
 cargo deb
 ```
 
 The output package will be created in:
 
 ```text
-target/debian/wol-gui_0.1.0_amd64.deb
+target/debian/wol-gui_${VERSION}_amd64.deb
 ```
 
 #### Method B: Manual build with `dpkg-deb`
@@ -188,26 +193,28 @@ target/debian/wol-gui_0.1.0_amd64.deb
 Compile the application in release mode:
 
 ```bash
+VERSION=$(git describe --tags --exact-match --match 'v*' | sed 's/^v//')
+sed -i "0,/^version = .*/s//version = \"${VERSION}\"/" Cargo.toml
 cargo build --release
 ```
 
 Create the package directory structure:
 
 ```bash
-mkdir -p wol-gui_0.1.0_amd64/DEBIAN
-mkdir -p wol-gui_0.1.0_amd64/usr/bin
-mkdir -p wol-gui_0.1.0_amd64/usr/share/applications
+mkdir -p "wol-gui_${VERSION}_amd64/DEBIAN"
+mkdir -p "wol-gui_${VERSION}_amd64/usr/bin"
+mkdir -p "wol-gui_${VERSION}_amd64/usr/share/applications"
 
-cp target/release/wol-gui wol-gui_0.1.0_amd64/usr/bin/
-cp wol-gui.desktop wol-gui_0.1.0_amd64/usr/share/applications/
+cp target/release/wol-gui "wol-gui_${VERSION}_amd64/usr/bin/"
+cp wol-gui.desktop "wol-gui_${VERSION}_amd64/usr/share/applications/"
 ```
 
 Create the Debian control file:
 
 ```bash
-cat <<EOF > wol-gui_0.1.0_amd64/DEBIAN/control
+cat <<EOF > "wol-gui_${VERSION}_amd64/DEBIAN/control"
 Package: wol-gui
-Version: 0.1.0
+Version: ${VERSION}
 Section: net
 Priority: optional
 Architecture: amd64
@@ -220,13 +227,13 @@ EOF
 Build the package:
 
 ```bash
-dpkg-deb --build wol-gui_0.1.0_amd64
+dpkg-deb --build "wol-gui_${VERSION}_amd64"
 ```
 
 The resulting package is saved as:
 
 ```text
-./wol-gui_0.1.0_amd64.deb
+./wol-gui_${VERSION}_amd64.deb
 ```
 
 ### Windows MSI installer
@@ -246,13 +253,17 @@ cargo install cargo-wix
 Build the MSI installer:
 
 ```powershell
+$version = (git describe --tags --exact-match --match "v*").TrimStart("v")
+$content = Get-Content Cargo.toml -Raw
+$content = $content -replace '(?m)^version = "[^"]+"$', "version = `"$version`""
+Set-Content Cargo.toml -Value $content -NoNewline
 cargo wix --release
 ```
 
 The installer is generated at:
 
 ```text
-target/wix/wol-gui-0.1.0-x86_64.msi
+target/wix/wol-gui-<release-version>-x86_64.msi
 ```
 
 ---
@@ -265,6 +276,12 @@ To build a direct executable without creating an OS package:
 # Clone the repository
 git clone https://github.com/dietmarschnabel-code/wol-gui.git
 cd wol-gui
+git fetch --tags
+git checkout "$(git tag --list 'v*' --sort=-version:refname | head -n 1)"
+
+# Set the Cargo package version from the checked-out release tag
+VERSION=$(git describe --tags --exact-match --match 'v*' | sed 's/^v//')
+sed -i "0,/^version = .*/s//version = \"${VERSION}\"/" Cargo.toml
 
 # Compile in release mode
 cargo build --release

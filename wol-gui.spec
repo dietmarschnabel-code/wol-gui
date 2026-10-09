@@ -1,5 +1,5 @@
 Name:           wol-gui
-Version:        0.1.0
+Version:        0.0.0
 Release:        1%{?dist}
 Summary:        Cross-platform Wake-on-LAN GUI manager written in Rust
 
@@ -15,6 +15,7 @@ Allows managing multiple remote host profiles and sending UDP magic packets acro
 
 %prep
 %autosetup
+sed -i '0,/^version = .*/s//version = "%{version}"/' Cargo.toml
 
 %build
 cargo build --release
@@ -30,5 +31,5 @@ fi
 %{?_datadir}/applications/%{name}.desktop
 
 %changelog
-* Fri Oct 09 2026 Developer <dev@example.com> - 0.1.0-1
+* Fri Oct 09 2026 Developer <dev@example.com> - %{version}-%{release}
 - Tagged Automated Release
