@@ -1,5 +1,5 @@
 Name:           wol-gui
-Version:        0.1.7
+Version:        0.1.8
 Release:        1%{?dist}
 Summary:        Cross-platform Wake-on-LAN GUI manager written in Rust
 
