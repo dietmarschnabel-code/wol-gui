@@ -15,6 +15,7 @@ serde = { version = "1.0", features = ["derive"] }
 fluent-templates = "0.8"
 unic-langid = "0.9"
 sys-locale = "0.3"
+image = { version = "0.24", default-features = false, features = ["png"] }
 
 [package.metadata.deb]
 maintainer = "Dietmar Schnabel"
@@ -29,6 +30,7 @@ priority = "optional"
 assets = [
     ["target/release/wol-gui", "usr/bin/", "755"],
     ["wol-gui.desktop", "usr/share/applications/", "644"],
+    ["assets/icon.png", "usr/share/pixmaps/wol-gui.png", "644"],
 ]
 
 [package.metadata.wix]

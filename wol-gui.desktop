@@ -13,7 +13,7 @@ Comment[de]=Sendet Wake-on-LAN Magic Packets an entfernte Geräte
 Comment[zh_CN]=向远程计算机发送 Wake-on-LAN 魔术唤醒包
 
 Exec=wol-gui
-Icon=network-workgroup
+Icon=wol-gui
 Terminal=false
 Categories=Network;System;
 Keywords=WoL;Wake;Network;Magic;Packet;

@@ -42,6 +42,21 @@ fn detect_system_language() -> String {
     }
 }
 
+/// Loads and decodes the application icon from assets/icon.png at compile time.
+fn load_icon() -> egui::IconData {
+    let image = image::load_from_memory(include_bytes!("../assets/icon.png"))
+        .expect("Failed to load application icon from assets/icon.png")
+        .into_rgba8();
+    let (width, height) = image.dimensions();
+    let rgba = image.into_raw();
+
+    egui::IconData {
+        rgba,
+        width,
+        height,
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum ThemeMode {
     System,
@@ -332,7 +347,8 @@ fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([620.0, 360.0])
-            .with_resizable(true),
+            .with_resizable(true)
+            .with_icon(load_icon()), // <--- Icon loaded and applied here
         ..Default::default()
     };
 
