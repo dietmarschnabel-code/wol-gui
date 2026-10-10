@@ -255,7 +255,11 @@ Build the MSI installer:
 ```powershell
 $version = (git describe --tags --exact-match --match "v*").TrimStart("v")
 $content = Get-Content Cargo.toml -Raw
-$content = $content -replace '(?m)^version = "[^"]+"$', "version = `"$version`""
+$versionPattern = '(?m)^version = "[^"]+"(?=\r?$)'
+if ($content -notmatch $versionPattern) {
+    throw "Could not find the package version in Cargo.toml"
+}
+$content = $content -replace $versionPattern, "version = `"$version`""
 Set-Content Cargo.toml -Value $content -NoNewline
 cargo wix --release
 ```
