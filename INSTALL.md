@@ -127,8 +127,10 @@ rpmdev-setuptree
 Create a source tarball that matches the spec file version:
 
 ```bash
-VERSION=$(git describe --tags --exact-match --match 'v*' | sed 's/^v//')
-git archive --format=tar.gz --prefix="wol-gui-${VERSION}/" "v${VERSION}" -o ~/rpmbuild/SOURCES/wol-gui-${VERSION}.tar.gz
+TAG=$(git describe --tags --match 'v*' --abbrev=0)
+VERSION=${TAG#v}
+VERSION=${VERSION%%-*}
+git archive --format=tar.gz --prefix="wol-gui-${VERSION}/" "${TAG}" -o ~/rpmbuild/SOURCES/wol-gui-${VERSION}.tar.gz
 sed -i "s/^Version:.*/Version:        ${VERSION}/" wol-gui.spec
 ```
 

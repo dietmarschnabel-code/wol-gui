@@ -33,5 +33,12 @@ assets = [
     ["assets/icon.png", "usr/share/pixmaps/wol-gui.png", "644"],
 ]
 
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/wol-gui", dest = "/usr/bin/wol-gui", mode = "755" },
+    { source = "wol-gui.desktop", dest = "/usr/share/applications/wol-gui.desktop", mode = "644" },
+    { source = "assets/icon.png", dest = "/usr/share/pixmaps/wol-gui.png", mode = "644" },
+]
+
 [package.metadata.wix]
 eula = false
