@@ -1,10 +1,10 @@
 Name:           wol-gui
-Version:        0.1.5
+Version:        0.1.6
 Release:        1%{?dist}
 Summary:        Cross-platform Wake-on-LAN GUI manager written in Rust
 
 License:        MIT OR Apache-2.0
-URL:            https://github.com/yourusername/wol-gui
+URL:            https://github.com/dietmarschnabel-code/go-e-sma-homewizard-controller
 Source0:        %{name}-%{version}.tar.gz
 
 BuildRequires:  cargo
@@ -21,14 +21,23 @@ sed -i '0,/^version = .*/s//version = "%{version}"/' Cargo.toml
 cargo build --release
 
 %install
+# Install binary
 install -Dpm 0755 target/release/wol-gui %{buildroot}%{_bindir}/wol-gui
+
+# Install desktop entry file
 if [ -f %{name}.desktop ]; then
     install -Dpm 0644 %{name}.desktop %{buildroot}%{_datadir}/applications/%{name}.desktop
+fi
+
+# Install application icon
+if [ -f assets/icon.png ]; then
+    install -Dpm 0644 assets/icon.png %{buildroot}%{_datadir}/pixmaps/%{name}.png
 fi
 
 %files
 %{_bindir}/wol-gui
 %{?_datadir}/applications/%{name}.desktop
+%{?_datadir}/pixmaps/%{name}.png
 
 %changelog
 * Fri Oct 09 2026 Developer <dev@example.com> - %{version}-%{release}
